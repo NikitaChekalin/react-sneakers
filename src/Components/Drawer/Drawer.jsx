@@ -1,7 +1,36 @@
 import React from 'react';
-import stylesDrawer from './Drawer.module.scss';
+import axios from 'axios';
 
+import Info from '../Info/Info';
+import AppContext from '../../context';
+
+import stylesDrawer from './Drawer.module.scss';
 export default function Drawer({ onClose, items = [], onRemove }) {
+  const API_ORDERS = 'https://60d4633761160900173cb0e9.mockapi.io/orders';
+  const API_CART = 'https://60d4633761160900173cb0e9.mockapi.io/cart/';
+  const { setCartItems, cartItems } = React.useContext(AppContext);
+  const [isOrderCompleted, setisOrderCompleted] = React.useState(false);
+  const [orderID, setOrderID] = React.useState(null);
+  const totalPrice = cartItems.reduce((sum, obj) => sum + obj.price, 0);
+  const delay = () => new Promise((resolve) => setTimeout(resolve, 1000));
+  const onClickOrder = async () => {
+    try {
+      const { data } = await axios.post(API_ORDERS, {
+        items: cartItems,
+      });
+      setOrderID(data.id);
+      setisOrderCompleted(true);
+      setCartItems([]);
+      for (let i = 0; i < cartItems.length; i++) {
+        const item = cartItems[i];
+        await axios.delete(API_CART + item.id, []);
+        await delay();
+      }
+    } catch (error) {
+      alert('НЕ вдалось оформити замовлення :(');
+    }
+  };
+
   return (
     <div className={stylesDrawer.overlay}>
       <div className={stylesDrawer.drawer}>
@@ -37,15 +66,15 @@ export default function Drawer({ onClose, items = [], onRemove }) {
               <li className={stylesDrawer.cart__footer__item}>
                 <span>Разом</span>
                 <div></div>
-                <b>13355 грн.</b>
+                <b>{`${totalPrice} грн.`}</b>
               </li>
               <li className={stylesDrawer.cart__footer__item}>
                 <span>Податок 5%:</span>
                 <div></div>
-                <b>501грн.</b>
+                <b>{`${(totalPrice * 100) / 5} грн.`}</b>
               </li>
             </ul>
-            <button className={stylesDrawer.btn__cart__confirm}>
+            <button onClick={onClickOrder} className={stylesDrawer.btn__cart__confirm}>
               Оформити замовлення
               <img
                 className={stylesDrawer.cart__footer__arrow}
@@ -55,19 +84,15 @@ export default function Drawer({ onClose, items = [], onRemove }) {
             </button>
           </div>
         ) : (
-          <div className={stylesDrawer.cart__empty}>
-            <img
-              className={stylesDrawer.cart__empty__img}
-              src={'/img/cartEmpty.png'}
-              alt="CartEmpty"
-            />
-            <h2>Корзина пуста</h2>
-            <p className={stylesDrawer.cart__empty__info}>Додайте щось , щоб зробити замовлення</p>
-            <button onClick={onClose} className={stylesDrawer.btn__cart__confirm}>
-              Повернутись назад
-              <img className={stylesDrawer.cart__empty__img} src={'/img/arrow.svg'} alt="Arorow" />
-            </button>
-          </div>
+          <Info
+            title={isOrderCompleted ? 'Заказ Оформлений ' : 'Корзина Пуста '}
+            description={
+              isOrderCompleted
+                ? `Ваше замовлення #${orderID} буде передано курєрскій службі `
+                : 'Додайте щось , щоб зробити замовлення'
+            }
+            image={isOrderCompleted ? '/img/order.png' : '/img/cartEmpty.png '}
+          />
         )}
       </div>
     </div>
